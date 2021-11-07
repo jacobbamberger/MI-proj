@@ -16,17 +16,15 @@ class GCN(torch.nn.Module):
         self.conv1 = GCNConv(3, 16)
         self.conv2 = GCNConv(16, 2)
         self.lin = Linear(16, 2)
+        self.gmp = nn.global_mean_pool
 
-    def forward(self, x, edge_index):
+    def forward(self, x, edge_index, batch):
         #x, edge_index = data.x, data.edge_index
 
         x = self.conv1(x, edge_index)
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
-        x = self.conv2(x, edge_index)
-
-        x = x.view(-1, 1)
-        x = self.lin(x)
+        x = self.gmp(x, batch)
 
         return F.log_softmax(x, dim=1)
 
@@ -73,12 +71,12 @@ class NoPhysicsGnn(GnnBaseline):
 
         x = self.gin_input(x, edge_index)
         x = F.elu(x, alpha=0.1)
-        x, edge_index, batch, _ = self.pool(x, edge_index, batch)
+        # x, edge_index, batch, _ = self.pool(x, edge_index, batch)
         #print(x.shape)
 
         x = self.gin16(x, edge_index)
         x = F.elu(x, alpha=0.1)
-        x, edge_index, batch, _ = self.pool(x, edge_index, batch)
+        # x, edge_index, batch, _ = self.pool(x, edge_index, batch)
         #print(x.shape)
 
         x = self.gin16(x, edge_index)
