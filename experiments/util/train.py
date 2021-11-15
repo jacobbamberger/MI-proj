@@ -25,7 +25,7 @@ class GNN:
         print("Using device:", self.device)
         self.model_name = model_param['name']
         self.model_path = model_path
-        self.ratio = 1.0
+        self.ratio = 1.0 # not sure what this does. Assuming its for phys models. TODO: might delete
 
         if self.model_name == 'NoPhysicsGnn':
             self.physics = False
@@ -63,7 +63,7 @@ class GNN:
 
     def get_losses(self, data):
         if self.physics:
-            print("Wrong argument: self.physics set to true. Not supported in this project.")
+            print("!! Wrong argument: self.physics set to true. Not supported in this project.")
         else:
             cnc = data.y
             cnc_pred = self.model(data.x, data.edge_index, data.batch, data.segment)
@@ -72,7 +72,6 @@ class GNN:
 
     def train(self, epochs, early_stop):
         self.model.train()
-        n_epochs_stop = early_stop
         epochs_no_improve = 0
         min_val_loss = 1e8
         for epoch_idx in range(epochs):
@@ -106,14 +105,17 @@ class GNN:
             })
 
             self.model.eval()
-            val_loss = self.evaluate(val_set=True)
+            val_loss, val_f1score = self.evaluate(val_set=True)
             if val_loss < min_val_loss:
                 epochs_no_improve = 0
                 min_val_loss = val_loss
             else:
                 epochs_no_improve += 1
-            if epochs_no_improve == n_epochs_stop: #relevant for early stop
-                return
+            if epochs_no_improve == early_stop:
+                print("Early stoped at epoch: ", epoch_idx)
+                return val_f1score
+        print("Done training!")
+        return val_f1score
 
     def evaluate(self, val_set): # val set is boolean, saying whether we use calidation or test set
         if val_set:
@@ -147,4 +149,4 @@ class GNN:
             prefix + '_f1score': f1_score,
             prefix + '_loss_graph': val_loss_cnc
         })
-        return val_loss
+        return val_loss, f1_score

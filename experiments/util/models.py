@@ -10,24 +10,6 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
-class GCN(torch.nn.Module):
-    def __init__(self, dataset):
-        super().__init__()
-        self.conv1 = GCNConv(3, 16)
-        self.conv2 = GCNConv(16, 2)
-        self.lin = Linear(16, 2)
-        self.gmp = nn.global_mean_pool
-
-    def forward(self, x, edge_index, batch):
-        #x, edge_index = data.x, data.edge_index
-
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-        x = F.dropout(x, training=self.training)
-        x = self.gmp(x, batch)
-
-        return F.log_softmax(x, dim=1)
-
 
 
 class GnnBaseline(torch.nn.Module):
@@ -37,7 +19,7 @@ class GnnBaseline(torch.nn.Module):
         self.gin_input = self.get_GIN(dataset.num_node_features, 16, 16)
         self.gin16 = self.get_GIN(16, 16, 16)
 
-        self.pool = nn.EdgePooling(16)
+        # self.pool = nn.EdgePooling(16) $ this layer could not run on GPU for Jacob
         self.gmp = nn.global_mean_pool
         self.gap = nn.global_max_pool
 

@@ -2,13 +2,13 @@ import numpy as np
 import os
 import random
 import torch
-import pickle5 as pickle #to work with python3.6.5
+import pickle5 as pickle #to work with earlier python versions (~3.6)
 #import pickle
 from typing import Union, List, Tuple
 from torch_geometric.data import Dataset
 from sklearn.model_selection import train_test_split, KFold
 
-def split_data(path, num_node_feat=3, cv=False, k_cross=10):
+def split_data(path, num_node_feat=3, cv=False, k_cross=10, seed=0):
     ''' Returns train, valid, test split, each are DataSet objects.
     A design choice is that the split is done at the level of patients,
     and not at the level of arteries''' 
@@ -17,49 +17,48 @@ def split_data(path, num_node_feat=3, cv=False, k_cross=10):
     with open('../data/patient_dict.pickle', 'rb') as f:
         data_dict = pickle.load(f)
     patients = np.array(list(data_dict.keys())) #names of patients TODO: Is this list ordered? Shoudl be For reproducibility.
-
+    patients = np.sort(patients) # for the seed thing to make sense. If the order change, the idnexing changes...
+    
+    # first isolate 10% of data for test set:
+    pretrain_patients, test_patients = train_test_split(patients, test_size = 0.1, shuffle=True, random_state=seed)
+    test_set = DataSet(path, test_patients, train='test', num_node_feat=num_node_feat)
     if cv: #cross val
-        kf = KFold(k_cross)
+        kf = KFold(k_cross, shuffle=True, random_state=seed)
         split_list = []
-        for train_index, pretest_index in kf.split(patients):
+        for train_index, val_index in kf.split(pretrain_patients):
+            # then split train and validation:
             train_patients = patients[train_index]
-            pretest_patients = patients[pretest_index]
-            test_patients, val_patients = train_test_split(pretest_patients, test_size=0.5)
-            split_list += [(DataSet(path, train_patients, train='train', num_node_feat=num_node_feat),
-                            DataSet(path, val_patients, train='val', num_node_feat=num_node_feat), 
-                            DataSet(path, test_patients, train='test', num_node_feat=num_node_feat)) ]
-        return split_list
-    else:
-        train_patients, pretest_patients = train_test_split(patients, test_size = 0.2)
-        test_patients, val_patients = train_test_split(pretest_patients, test_size=0.5)
-        return [(DataSet(path, train_patients, train='train', num_node_feat=num_node_feat),
-                DataSet(path, val_patients, train='val', num_node_feat=num_node_feat),
-                DataSet(path, test_patients, train='test', num_node_feat=num_node_feat) )]
+            val_patients = patients[val_index]
+            split_list += [(DataSet(path, train_patients, train='train', num_node_feat=num_node_feat), #train dataset
+                            DataSet(path, val_patients, train='val', num_node_feat=num_node_feat))] #val dataset
+        return test_set, split_list #TODO be convinced not to return triples (train, val test)
+    else: # no cross val
+        train_patients, val_patients = train_test_split(pretrain_patients, test_size = 0.1,  shuffle=True, random_state=seed)
+        split_list = [(DataSet(path, train_patients, train='train', num_node_feat=num_node_feat), #train dataset
+                       DataSet(path, val_patients, train='val', num_node_feat=num_node_feat))] # val set
+        return test_set, split_list # split list has length 1, just to imitate the cross val format
 
-    # # splitting on arteries:
-    # arteries =[]
-    # for x in data_dict.values():
-    #     arteries += x
 
+    # # THEN do cross validation
+    # # The following block is to do the test split within the cross validation. Apprently this is not the right way.
+    
     # if cv: #cross val
     #     kf = KFold(k_cross)
     #     split_list = []
-    #     for train_index, pretest_index in kf.split(arteries):
-    #         train_arteries = arteries[train_index]
-    #         pretest_arteries = arteries[pretest_index]
-    #         test_arteries, val_arteries = train_test_split(pretest_arteries, test_size=0.5)
-    #         split_list += [(DataSet(path, train_arteries, train='train', num_node_feat=num_node_feat),
-    #                         DataSet(path, val_arteries, train='val', num_node_feat=num_node_feat), 
-    #                         DataSet(path, test_arteries, train='test', num_node_feat=num_node_feat)) ]
+    #     for train_index, pretest_index in kf.split(patients):
+    #         train_patients = patients[train_index] # train_patiens as list
+    #         pretest_patients = patients[pretest_index] # both test and validation for given split
+    #         test_patients, val_patients = train_test_split(pretest_patients, test_size=0.5)
+    #         split_list += [(DataSet(path, train_patients, train='train', num_node_feat=num_node_feat), #train dataset
+    #                         DataSet(path, val_patients, train='val', num_node_feat=num_node_feat), #val dataset
+    #                         DataSet(path, test_patients, train='test', num_node_feat=num_node_feat)) ] #test dataset
     #     return split_list
     # else:
-    #     train_arteries, pretest_arteries = train_test_split(arteries, test_size = 0.2)
-    #     test_arteries, val_arteries = train_test_split(pretest_arteries, test_size=0.5)
-    #     return [(DataSet(path, train_arteries, train='train', num_node_feat=num_node_feat),
-    #             DataSet(path, val_arteries, train='val', num_node_feat=num_node_feat),
-    #             DataSet(path, test_arteries, train='test', num_node_feat=num_node_feat) )]
-
-
+    #     train_patients, pretest_patients = train_test_split(patients, test_size = 0.2)
+    #     test_patients, val_patients = train_test_split(pretest_patients, test_size=0.5)
+    #     return [(DataSet(path, train_patients, train='train', num_node_feat=num_node_feat),
+    #             DataSet(path, val_patients, train='val', num_node_feat=num_node_feat),
+    #             DataSet(path, test_patients, train='test', num_node_feat=num_node_feat) )]
 
 class DataSet(Dataset):
     def __init__(self, path, patients, train='train', num_node_feat=3):
@@ -72,9 +71,9 @@ class DataSet(Dataset):
             if name[:6] not in patients: #check if patient is in appropriate set: training, val, test
                 continue
             # the following conditionals apply only to testing/val data, and makes sure the augmented data is deleted
-            # if name[-4] == '1': #and train != 'train': # check if this is the augmented part of the data. If it is, and we are test or validating, then skip
-            #     continue
-            if name[-9:-5] != 'rot0' and train != 'train': # the rotation_augmented data has format: 'CHUV01_LAD_rot000.pt' where 000 is the angle.
+            if name[-4] == '1': #and train != 'train': # check if this is the augmented part of the data. If it is, and we are test or validating, then skip
+                continue
+            if name[-9:-6] == 'rot':# and train != 'train': # the rotation_augmented data has format: 'CHUV01_LAD_rot000.pt' where 000 is the angle.
                 continue
             self.data.append(name) # name is name of file
         self.train=train

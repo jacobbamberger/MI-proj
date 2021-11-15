@@ -22,40 +22,41 @@ parser.add_argument("--optim_lr", type=float, default=0.0005)
 parser.add_argument("--optim_momentum", type=float, default=0.0)
 parser.add_argument("--physics", type=int, default=0)
 parser.add_argument("--weighted_loss", type=float, default=0.5)
-parser.add_argument("--batch_size", type=int, default=1)
 parser.add_argument("--seed", type=int, default=0)
 
-parser.add_argument("--save_name", type=str, default='unnamed_model')
+parser.add_argument("--batch_size", type=int, default=1)
+
+parser.add_argument("--save_name", type=str, default='no_save')
 parser.add_argument("--eps", type=float, default=0.1)
 parser.add_argument("--cross_val", type=bool, default=False)
 parser.add_argument("--k_cross", type=int, default='10')
 
 
 # parser.add_argument("--cross_validation", action='store_true', default=False)
-parser.add_argument("--path_data", type=str, default="./data/CoordToCnc")
+parser.add_argument("--path_data", type=str, default="../data/CoordToCnc")
 parser.add_argument("--path_model", type=str, default="./experiments/util/")
 args = parser.parse_args()
 
 print("starting .......")
 
-
-split_list = split_data(args.path_data, 
+test_set, split_list = split_data(args.path_data, 
                         args.num_node_features,
                         cv=args.cross_val,
                         k_cross=args.k_cross)
+print("Test set length: ", len(test_set))
+print("Test patients: ", test_set.data)
 
-for i, (train_set, valid_set, test_set) in enumerate(split_list):
+for i, (train_set, val_set) in enumerate(split_list):
     print('cross val: ', i)
+    print("Train set length: ", len(train_set))
+    print("Val set length: ", len(val_set))
+    print("Val patients: ", val_set.data)
     wandb.init(project='mi-prediction',
-               group='10RandAug',
-               name='10RandAug-k-cross'+str(i),
+               #group='noAugm',
+               name='no_aug_save'+str(i),
                config=args)
 
     args.path_data = os.path.join(args.path_data) 
-
-    print("Train set length: ", len(train_set))
-    print("Val set length: ", len(valid_set))
-    print("Test set length: ", len(test_set))
 
     optim_param = {
         'name': args.optim,
@@ -72,7 +73,7 @@ for i, (train_set, valid_set, test_set) in enumerate(split_list):
         args.path_model + args.model,
         model_param,
         train_set,
-        valid_set,
+        val_set,
         test_set,
         args.batch_size,
         optim_param,
@@ -87,11 +88,12 @@ for i, (train_set, valid_set, test_set) in enumerate(split_list):
     #gnn.train_aug_rot(args.epochs, args.early_stop, eps=args.eps)
     gnn.evaluate(val_set=False)
 
-
-    #print("Saving under: ", args.save_name)
-    #torch.save(gnn, args.save_name)
-    # with open('model_CoordToCnc_rot(-45,45, 9).pt', 'rb') as f:
-    #     gnn_re = torch.load(f)
+    #if args.save_name != 'no_save' and not args.cross_val:
+        #print("Saving under: ", args.save_name)
+        #print("Test patients: ", test_set.data)
+        #torch.save(gnn, args.save_name)
+        # with open('model_CoordToCnc_rot(-45,45, 9).pt', 'rb') as f:
+        #     gnn_re = torch.load(f)
 
     wandb.finish()
     print("Done!!")
