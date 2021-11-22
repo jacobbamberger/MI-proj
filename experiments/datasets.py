@@ -2,7 +2,7 @@ import numpy as np
 import os
 import random
 import torch
-import pickle5 as pickle #to work with earlier python versions (~3.6)
+import pickle5 as pickle #to work with earlier python versions (~3.6) TODO: is this necessary? What does this change?
 #import pickle
 from typing import Union, List, Tuple
 from torch_geometric.data import Dataset

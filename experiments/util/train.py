@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
@@ -33,9 +34,9 @@ class GNN:
             self.model = NoPhysicsGnn(train_set)
         else:
             print("Unrecognized model name")
+        print("pushing model to: ", self.device)
         self.model.to(self.device)
 
-        # self.train_set = train_set
         self.train_loader = DataLoader(train_set, batch_size, shuffle=True) # set pin_memory=True to go faster? https://pytorch.org/docs/stable/data.html
         self.val_loader = DataLoader(valid_set, batch_size, shuffle=False)
         self.test_loader = DataLoader(test_set, batch_size, shuffle=False)
@@ -52,13 +53,13 @@ class GNN:
     @staticmethod
     def calculate_metrics(y_pred, y_true):
         accuracy = accuracy_score(y_true, y_pred)
-        precision = precision_score(y_true, y_pred, zero_division=0)
-        recall = recall_score(y_true, y_pred)
-        f1score = f1_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred, zero_division=0) # = tp/(tp + fp) i.e. fracttion of right positively labelled guesses:: wrongly classified as culprits
+        recall = recall_score(y_true, y_pred) # tp / (tp + fn) i.e. fraction of rightly guessed CULPRITS: rightly classified culprits
+        f1score = f1_score(y_true, y_pred) # harmonic mean btw precision and recall
 
         cm = confusion_matrix(y_true, y_pred)
-        sensitivity = cm[0, 0] / (cm[0, 0] + cm[0, 1])
-        specificity = cm[1, 1] / (cm[1, 0] + cm[1, 1])
+        sensitivity = cm[0, 0] / (cm[0, 0] + cm[0, 1]) # tn / (tn + fp) like recall but for Non Culprits
+        specificity = cm[1, 1] / (cm[1, 0] + cm[1, 1]) # tp /(fn + tp): this is equal to recall
         return accuracy, precision, recall, sensitivity, specificity, f1score
 
     def get_losses(self, data):
@@ -70,7 +71,7 @@ class GNN:
             loss = loss_cnc = self.criterion(cnc_pred, data.y)
         return loss, loss_cnc, cnc_pred, cnc
 
-    def train(self, epochs, early_stop):
+    def train(self, epochs, early_stop, allow_stop=200, run=wandb):
         self.model.train()
         epochs_no_improve = 0
         min_val_loss = 1e8
@@ -93,7 +94,7 @@ class GNN:
 
             train_loss_cnc = running_loss_cnc / len(self.train_loader.dataset)
             acc, prec, rec, sens, spec, f1score = self.calculate_metrics(y_pred, y_true)
-            wandb.log({
+            run.log({
                 'ratio': self.ratio,
                 'train_accuracy': acc,
                 'train_precision': prec,
@@ -105,19 +106,20 @@ class GNN:
             })
 
             self.model.eval()
-            val_loss, val_f1score = self.evaluate(val_set=True)
+            # val score:
+            acc, prec, rec, sensitivity, specificity, f1_score, val_loss = self.evaluate(val_set=True)
             if val_loss < min_val_loss:
                 epochs_no_improve = 0
                 min_val_loss = val_loss
             else:
                 epochs_no_improve += 1
-            if epochs_no_improve == early_stop:
+            if epochs_no_improve > early_stop and epoch_idx>allow_stop:
                 print("Early stoped at epoch: ", epoch_idx)
-                return val_f1score
+                return acc, prec, rec, sensitivity, specificity, f1_score, val_loss
         print("Done training!")
-        return val_f1score
+        return acc, prec, rec, sensitivity, specificity, f1_score, val_loss
 
-    def evaluate(self, val_set): # val set is boolean, saying whether we use calidation or test set
+    def evaluate(self, val_set, run=wandb): # val set is boolean, saying whether we use calidation or test set
         if val_set:
             dataloader = self.val_loader
             prefix = 'val'
@@ -140,7 +142,7 @@ class GNN:
         val_loss_cnc = running_loss_cnc / len(self.val_loader.dataset)
         val_loss = running_loss / len(self.val_loader.dataset)
         acc, prec, rec, sensitivity, specificity, f1_score = self.calculate_metrics(y_pred, y_true)
-        wandb.log({
+        run.log({
             prefix + '_accuracy': acc,
             prefix + '_precision': prec,
             prefix + '_recall': rec,
@@ -149,4 +151,6 @@ class GNN:
             prefix + '_f1score': f1_score,
             prefix + '_loss_graph': val_loss_cnc
         })
-        return val_loss, f1_score
+        return acc, prec, rec, sensitivity, specificity, f1_score, val_loss
+
+        
