@@ -13,15 +13,15 @@ epochs:
     - 1000
 early_stop:
         #- 2000 # cannot early stop here
-        #- 50
+     - 50
         #- 20
-     - 100
+        #- 100
         #- 75
         #- 200
       #- 300
        #equiv_model:
        # - False
-    #- "input l2 norm to first equiv. input l2 norm of final embedding to classifier (throough max and mean pooling)" 
+    #- "input l2 norm to ifirst equiv. input l2 norm of final embedding to classifier (throough max and mean pooling)" 
       #n_layers:
       #    - 1
       #    - 2
@@ -38,19 +38,19 @@ num_equiv:
         #- 1
       #- 2
     - 3
-    - 4
+      #- 4
       #- 5
       #- 6
 allow_stop:
-        #- 0
-    - 100
+    - 0
+        #- 100
       #- 200 # make sure to include this in the code!! (has to run for at least 200)
 physics:
     - 0
 seed:
     - 0
 path_data:
-    - "../data/CoordToCncGaussian2" # Options include: 10RandRot_CoordToCnc  4RotCoordToCnc  CoordToCnc  CoordToCnc_KNN5
+    - "../data/CoordToCnc" # Options include: 10RandRot_CoordToCnc  4RotCoordToCnc  CoordToCnc  CoordToCnc_KNN5
 path_model:
     - "./experiments/util/"
 batch_size:
@@ -63,11 +63,11 @@ optim:
     - 'Adam'
 optim_lr:
         #- 0.000005
-        #- 0.00001
+    - 0.00001
         #- 0.00005
-        # - 0.0001
-    - 0.0005
-      #- 0.001
+        #- 0.0001
+       #- 0.0005
+       #- 0.001
       #- 0.005
 weighted_loss:
     #- 0.4
@@ -77,3 +77,14 @@ optim_momentum:
     - 0.0
       #- 0.001
       #- 0.0001
+hidden_dim:
+    - 3
+    - 16
+act_fn:
+    - 'SiLU'
+    - 'ReLU'
+tanh:
+    - True
+    - False
+weight_sharing:
+    - False

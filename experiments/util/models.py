@@ -12,25 +12,30 @@ from torch_geometric.nn import GCNConv
 from util.egnn import E_GCL
 
 class EquivBaseline(torch.nn.Module):
-    def __init__(self, dataset, num_gin=2, num_equiv=2):
+    def __init__(self, dataset, num_gin=2, num_equiv=2, hidden_dim=16, act_fn='ReLU', tanh=True):
         super().__init__()
         
         self.num_gin=num_gin
         self.num_equiv=num_equiv
 
-        self.gin = self.get_GIN(16, 16, 16)
-        self.gin2 = self.get_GIN(16, 16, 16)
-        self.gin3 = self.get_GIN(16, 16, 16)
+        self.gin = self.get_GIN(hidden_dim, hidden_dim, hidden_dim)
+        #self.gin2 = self.get_GIN(hidden_dim, hidden_dim, hidden_dim)
+        #self.gin3 = self.get_GIN(16, 16, 16)
+
+        if act_fn=='ReLU':
+            act_fn=ReLU()
+        if act_fn=='SiLU':
+            act_fn=SiLU()
 
         #self.pool = nn.EdgePooling(19) 
 
-        self.equiv = E_GCL(0, 16, 16, tanh=False, residual=False)#, act_fn=ELU(alpha=0.1))#ReLU()) #device='cuda')
-        self.equiv1 = E_GCL(16, 16, 16, tanh=False)
-        self.equiv2 = E_GCL(16, 16, 16, tanh=False)#, act_fn=ELU(alpha=0.1))#)#, act_fn=ReLU()) #, device ='cuda')
-        self.equiv3 = E_GCL(16, 16, 16, tanh=False)#, act_fn=ELU(alpha=0.1))#)
-        self.equiv4 = E_GCL(16, 16, 16, tanh=False)
-        self.equiv5 = E_GCL(16, 16, 16, tanh=False)
-        self.equiv6 = E_GCL(16,16,16, tanh=False)        
+        self.equiv = E_GCL(0, hidden_dim, hidden_dim, act_fn=act_fn, tanh=tanh)#, act_fn=ELU(alpha=0.1))#ReLU()) #device='cuda')
+        self.equiv1 = E_GCL(hidden_dim, hidden_dim, hidden_dim, act_fn=act_fn, tanh=tanh)
+        self.equiv2 = E_GCL(hidden_dim, hidden_dim, hidden_dim, act_fn=act_fn, tanh=tanh)
+        self.equiv3 = E_GCL(hidden_dim, hidden_dim, hidden_dim, act_fn=act_fn, tanh=tanh)
+        #self.equiv4 = E_GCL(16, 16, 16, tanh=False)
+        #self.equiv5 = E_GCL(16, 16, 16, tanh=False)
+        #self.equiv6 = E_GCL(16,16,16, tanh=False)        
         #self.equiv4 = E_GCL(4, 4, 4, tanh=False)
         #self.equiv5 = E_GCL(4, 4, 4, tanh=False)
         #self.equiv6 = E_GCL(4, 4, 4, tanh=False)
@@ -40,12 +45,12 @@ class EquivBaseline(torch.nn.Module):
 
         self.classifier = Sequential(
             Dropout(p=0.5),
-            Linear(2 * 16 +1, 16),
-            ELU(alpha=0.1),
+            Linear(2 * hidden_dim +1, 16),
+            ReLU(),
             #torch.nn.Sigmoid(),
             Dropout(p=0.5),
             Linear(16,  dataset.num_classes),
-            Softmax(dim=1)
+            #Softmax(dim=1)
         )
 
     @staticmethod
@@ -59,7 +64,7 @@ class EquivBaseline(torch.nn.Module):
         return nn.GINConv(MLP, eps=0.0, train_eps=False)
 
 class EquivNoPhys(EquivBaseline):
-    def __init__(self, dataset, num_gin=2, num_equiv=2):
+    def __init__(self, dataset, num_gin=2, num_equiv=2, hidden_dim=16, act_fn=ReLU(), tanh=True):
         super().__init__(dataset, num_gin, num_equiv)
 
     def forward(self, x, edge_index, batch, segment):
@@ -96,7 +101,7 @@ class EquivNoPhys(EquivBaseline):
             rep, pos, _ = self.equiv2(rep, edge_index, pos, None)
         
         if self.num_equiv>2:
-            rep, pos, _ = self.equiv3(rep, edge_index, pos, None)
+            rep, pos, _ = self.equiv(rep, edge_index, pos, None)
         
         if self.num_equiv>3:
             rep, pos, _ = self.equiv4(rep, edge_index, pos, None)

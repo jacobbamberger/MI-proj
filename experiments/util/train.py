@@ -35,8 +35,10 @@ class GNN:
             self.automatic_update = False
             self.model = EquivNoPhys(train_set,
                                      num_gin=args['num_gin'],
-                                     num_equiv=args['num_equiv'])
-    #                                 , args['n_layers'])
+                                     num_equiv=args['num_equiv'],
+                                     hidden_dim=args['hidden_dim'],
+                                     act_fn=args['act_fn'],
+                                     tanh=args['tanh'])
         else:
             print("Unrecognized model name")
 

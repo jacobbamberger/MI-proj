@@ -28,8 +28,8 @@ class E_GCL(nn.Module):
             nn.Linear(input_edge + edge_coords_nf + edges_in_d, hidden_nf), #input is dim of h_i+dim h_j +1
             nn.BatchNorm1d(hidden_nf),
             act_fn,
-            nn.Linear(hidden_nf, hidden_nf))
-            #act_fn,
+            nn.Linear(hidden_nf, hidden_nf),
+            act_fn)
             #nn.Linear(hidden_nf, hidden_nf)) # result is dim of m_i
             
         #self.edge_mlp = nn.Sequential( # as in noPhys GNN. Same edge function
@@ -50,8 +50,9 @@ class E_GCL(nn.Module):
         self.node_mlp = nn.Sequential(
             nn.Linear(hidden_nf + input_nf, hidden_nf),
             nn.BatchNorm1d(hidden_nf),
-            nn.ReLU(),
-            nn.Linear(hidden_nf, output_nf))
+            act_fn,
+            nn.Linear(hidden_nf, output_nf),
+            act_fn)
 
         layer = nn.Linear(hidden_nf, 1, bias=False)
         torch.nn.init.xavier_uniform_(layer.weight, gain=0.001)
