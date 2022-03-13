@@ -48,8 +48,8 @@ def split_data(path, num_node_feat=3, cv=False, k_cross=10, seed=0):
         split_list = []
         for train_index, val_index in kf.split(pretrain_patients):
             # then split train and validation
-            train_patients = patients[train_index]
-            val_patients = patients[val_index]
+            train_patients = pretrain_patients[train_index]
+            val_patients = pretrain_patients[val_index]
             # list of (train_set, val_set) tuple
             split_list += [(DataSet(path,
                                     train_patients,
